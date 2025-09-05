@@ -95,10 +95,10 @@ func checkCommand(ctx *cli.Context) error {
 	}
 
 	if highImpactIssues > 0 {
-		fmt.Printf("⚠️  Found %d high-impact performance issues\n", highImpactIssues)
+		fmt.Printf("  Found %d high-impact performance issues\n", highImpactIssues)
 		fmt.Println("Run 'goprofiler analyze' for details")
 	} else {
-		fmt.Println("✅ No critical performance issues detected")
+		fmt.Println(" No critical performance issues detected")
 	}
 
 	return nil
