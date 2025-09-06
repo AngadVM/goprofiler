@@ -48,14 +48,14 @@ func (f *Formatter) printConsole(results []analyzer.AnalysisResult, verbose bool
 	}
 
 	// Summary
-	fmt.Printf("📊 Analysis Summary:\n")
-	fmt.Printf("   Files analyzed: %d\n", len(results))
-	fmt.Printf("   Total issues: %d\n", totalIssues)
-	fmt.Printf("   High impact: %d | Medium: %d | Low: %d\n\n", 
+	fmt.Printf("[*] Analysis Summary:\n")
+	fmt.Printf("    Files analyzed: %d\n", len(results))
+	fmt.Printf("    Total issues: %d\n", totalIssues)
+	fmt.Printf("    High impact: %d | Medium: %d | Low: %d\n\n", 
 		highImpact, mediumImpact, lowImpact)
 
 	if totalIssues == 0 {
-		fmt.Println("✅ No performance issues detected!")
+		fmt.Println("[+] No performance issues detected!")
 		return nil
 	}
 
@@ -65,7 +65,7 @@ func (f *Formatter) printConsole(results []analyzer.AnalysisResult, verbose bool
 			continue
 		}
 
-		fmt.Printf("📁 %s\n", result.FilePath)
+		fmt.Printf(">> %s\n", result.FilePath)
 		for _, issue := range result.Issues {
 			f.printIssue(issue, verbose)
 		}

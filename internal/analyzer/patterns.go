@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// getDefaultPatterns returns the built-in performance patterns
+// getDefaultPatterns returns the built-in string-based performance patterns
 func getDefaultPatterns() []Pattern {
 	return []Pattern{
 		{

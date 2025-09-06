@@ -5,28 +5,29 @@ import (
 	"path/filepath"
 )
 
-// represents the analysis of a single file
+// AnalysisResult - the analysis of a single file
 type AnalysisResult struct {
 	FilePath string
 	Issues   []Issue
 }
 
-// represents a performance issue found in code
+// Issue - performance issue found in code
 type Issue struct {
 	Line        int
 	Title       string
 	Description string
 	Suggestion  string
 	Impact      string // high, medium, low
-	Type        string // allocation, loop, io
+	Type        string // allocation, loop, io, etc.
 }
 
-// handles performance analysis of Go code
+// Analyzer - handles performance analysis of Go code
 type Analyzer struct {
-	patterns []Pattern
+	patterns    []Pattern
+	astAnalyzer *ASTAnalyzer
 }
 
-// defines a performance pattern to detect
+// Pattern - defines a performance pattern to detect (string-based)
 type Pattern struct {
 	Name        string
 	Description string
@@ -34,14 +35,15 @@ type Pattern struct {
 	Detector    func(string) []Issue
 }
 
-// creates a new analyzer with default patterns
+// New creates a new analyzer with both string and AST patterns
 func New() *Analyzer {
 	return &Analyzer{
-		patterns: getDefaultPatterns(),
+		patterns:    getDefaultPatterns(),
+		astAnalyzer: NewASTAnalyzer(),
 	}
 }
 
-// analyzes a file or directory for performance issues
+// AnalyzePath - analyzes a file or directory for performance issues
 func (a *Analyzer) AnalyzePath(target string) ([]AnalysisResult, error) {
 	var results []AnalysisResult
 
@@ -81,29 +83,27 @@ func (a *Analyzer) AnalyzePath(target string) ([]AnalysisResult, error) {
 	return results, nil
 }
 
-// analyzes a single Go file
+// analyzeFile analyzes a single Go file using both string and AST patterns
 func (a *Analyzer) analyzeFile(filePath string) (AnalysisResult, error) {
 	var allIssues []Issue
-	
-	// Try AST analysis first (more accurate)
-	astAnalyzer := NewASTAnalyzer()
-	astIssues, err := astAnalyzer.AnalyzeFile(filePath)
-	if err == nil {
-		// AST analysis succeeded, use those results
-		allIssues = append(allIssues, astIssues...)
-	} else {
-		// AST failed (maybe syntax error), fall back to string analysis
-		content, readErr := os.ReadFile(filePath)
-		if readErr != nil {
-			return AnalysisResult{}, readErr
-		}
 
-		source := string(content)
-		
-		// Run string-based pattern detectors as fallback
-		for _, pattern := range a.patterns {
-			issues := pattern.Detector(source)
-			allIssues = append(allIssues, issues...)
+	// 1. Run string-based patterns
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return AnalysisResult{}, err
+	}
+
+	source := string(content)
+	for _, pattern := range a.patterns {
+		issues := pattern.Detector(source)
+		allIssues = append(allIssues, issues...)
+	}
+
+	// 2. Run AST-based patterns
+	if a.astAnalyzer != nil {
+		astResult, err := a.astAnalyzer.AnalyzeFileAST(filePath)
+		if err == nil {
+			allIssues = append(allIssues, astResult.Issues...)
 		}
 	}
 
