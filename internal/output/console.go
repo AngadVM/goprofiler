@@ -80,22 +80,22 @@ func (f *Formatter) printIssue(issue analyzer.Issue, verbose bool) {
 	var icon string
 	switch issue.Impact {
 	case "high":
-		icon = "🔥"
+		icon = "[!]"
 	case "medium":
-		icon = "⚡"
+		icon = "[*]"
 	case "low":
-		icon = "💡"
+		icon = "[i]"
 	default:
-		icon = "ℹ️"
+		icon = "[-]"
 	}
 
 	fmt.Printf("   %s Line %d: %s (%s impact)\n", 
 		icon, issue.Line, issue.Title, issue.Impact)
 
 	if verbose {
-		fmt.Printf("      %s\n", issue.Description)
+		fmt.Printf("       %s\n", issue.Description)
 		if issue.Suggestion != "" {
-			fmt.Printf("      💡 Suggestion: %s\n", issue.Suggestion)
+			fmt.Printf("       Suggestion: %s\n", issue.Suggestion)
 		}
 	}
 }

@@ -76,7 +76,7 @@ func checkCommand(ctx *cli.Context) error {
 	}
 
 	target := ctx.Args().Get(0)
-	fmt.Printf("🔍 Quick check: %s\n", target)
+	fmt.Printf("[CHECK] Quick analysis: %s\n", target)
 
 	a := analyzer.New()
 	results, err := a.AnalyzePath(target)
@@ -95,10 +95,10 @@ func checkCommand(ctx *cli.Context) error {
 	}
 
 	if highImpactIssues > 0 {
-		fmt.Printf("  Found %d high-impact performance issues\n", highImpactIssues)
-		fmt.Println("Run 'goprofiler analyze' for details")
+		fmt.Printf("[!] Found %d high-impact performance issues\n", highImpactIssues)
+		fmt.Println("    Run 'goprofiler analyze' for details")
 	} else {
-		fmt.Println(" No critical performance issues detected")
+		fmt.Println("[OK] No critical performance issues detected")
 	}
 
 	return nil
