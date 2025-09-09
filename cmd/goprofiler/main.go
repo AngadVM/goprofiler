@@ -83,7 +83,7 @@ func analyzeCommand(ctx *cli.Context) error {
 	verbose := ctx.Bool("verbose")
 	outputFormat := ctx.String("output")
 
-	fmt.Printf("==> GoProfiler - Analyzing: %s\n", target)
+	fmt.Printf(" GoProfiler - Analyzing: %s\n", target)
 	fmt.Println("=" + repeatString("=", 40))
 
 	// Use the analyzer package
@@ -93,7 +93,7 @@ func analyzeCommand(ctx *cli.Context) error {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
 
-	// Use the output package
+	// Using the output package
 	formatter := output.NewFormatter(outputFormat)
 	return formatter.PrintResults(results, verbose)
 }
@@ -113,7 +113,7 @@ func benchmarkCommand(ctx *cli.Context) error {
 	fmt.Println("=" + repeatString("=", 50))
 
 	// Step 1: Analyze for performance issues
-	fmt.Println("[*] Analyzing code for performance issues...")
+	fmt.Println(" [*] Analyzing code for performance issues...")
 	a := analyzer.New()
 	analysisResults, err := a.AnalyzePath(target)
 	if err != nil {
@@ -127,14 +127,14 @@ func benchmarkCommand(ctx *cli.Context) error {
 	}
 
 	if totalIssues == 0 {
-		fmt.Println("[OK] No performance issues found - nothing to benchmark!")
+		fmt.Println(" No performance issues found - nothing to benchmark!")
 		return nil
 	}
 
 	fmt.Printf("   Found %d potential performance issues\n\n", totalIssues)
 
 	// Step 2: Generate benchmarks
-	fmt.Println("[*] Generating benchmark files...")
+	fmt.Println(" [*] Generating benchmark files...")
 	generator := benchmark.NewBenchmarkGenerator()
 	benchmarkSuites, err := generator.GenerateBenchmarks(analysisResults)
 	if err != nil {
@@ -142,22 +142,22 @@ func benchmarkCommand(ctx *cli.Context) error {
 	}
 
 	if len(benchmarkSuites) == 0 {
-		fmt.Println("! No benchmarks could be generated from the detected issues. This may be due to unsupported issue types.")
+		fmt.Println(" No benchmarks could be generated from the detected issues. This may be due to unsupported issue types.")
 		return nil
 	}
 
 	fmt.Printf("   Generated %d benchmark files for supported issues\n", len(benchmarkSuites))
 	for _, suite := range benchmarkSuites {
-		fmt.Printf("   [FILE] %s\n", suite.BenchmarkFile)
+		fmt.Printf("  (#) %s\n", suite.BenchmarkFile)
 	}
 
 	if generateOnly {
-		fmt.Println("\n[DONE] Benchmark generation complete! Use --generate-only=false to run them.")
+		fmt.Println("\n Benchmark generation complete! Use --generate-only=false to run them.")
 		return nil
 	}
 
 	// Step 3: Run benchmarks
-	fmt.Println("\n[*] Running performance benchmarks...")
+	fmt.Println("\n [*] Running performance benchmarks...")
 	fmt.Println("   This may take a few moments...")
 
 	runner := benchmark.NewBenchmarkRunner("./benchmark-results")
@@ -167,7 +167,7 @@ func benchmarkCommand(ctx *cli.Context) error {
 	}
 
 	// Step 4: Display results
-	fmt.Println("\n[*] Performance Results")
+	fmt.Println("\n [*] Performance Results")
 	if outputFormat == "json" {
 		err = printBenchmarkJSON(comparisonResults)
 		if err != nil {
@@ -179,7 +179,7 @@ func benchmarkCommand(ctx *cli.Context) error {
 
 	// Step 5: Save results if requested
 	if saveResults != "" {
-		fmt.Printf("\n[SAVE] Saving results to %s\n", saveResults)
+		fmt.Printf("\n -> Saving results to %s\n", saveResults)
 		if err := runner.SaveResults(comparisonResults, saveResults); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
@@ -187,8 +187,10 @@ func benchmarkCommand(ctx *cli.Context) error {
 
 	// Step 6: Cleanup if requested
 	if cleanup {
-		fmt.Println("[CLEAN] Cleaning up temporary benchmark files...")
-		// The `runSuite` function already cleans up the files, so this explicit call is no longer needed.
+		fmt.Println(" [*] Cleaning up temporary benchmark files...")
+		if err := runner.CleanupBenchmarkFiles(benchmarkSuites); err != nil {
+			fmt.Printf("Warning: Cleanup failed: %v\n", err)
+		}
 	}
 
 	return nil

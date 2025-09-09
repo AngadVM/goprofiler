@@ -1,60 +1,41 @@
 package analyzer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	
+	"github.com/AngadVM/goprofiler/internal/analyzer/astpatterns"
+	"github.com/AngadVM/goprofiler/internal/analyzer/stringpatterns"
+	"github.com/AngadVM/goprofiler/internal/types"
 )
 
-// AnalysisResult - the analysis of a single file
-type AnalysisResult struct {
-	FilePath string
-	Issues   []Issue
-}
-
-// Issue - performance issue found in code
-type Issue struct {
-	Line        int
-	Title       string
-	Description string
-	Suggestion  string
-	Impact      string // high, medium, low
-	Type        string // allocation, loop, io, etc.
-}
-
-// Analyzer - handles performance analysis of Go code
+// handles performance analysis of Go code
 type Analyzer struct {
-	patterns    []Pattern
-	astAnalyzer *ASTAnalyzer
+	stringAnalyzer *stringpatterns.StringAnalyzer
+	astAnalyzer    *astpatterns.ASTAnalyzer
 }
 
-// Pattern - defines a performance pattern to detect (string-based)
-type Pattern struct {
-	Name        string
-	Description string
-	Impact      string
-	Detector    func(string) []Issue
-}
-
-// New creates a new analyzer with both string and AST patterns
+// creates a new analyzer with both string and AST patterns
 func New() *Analyzer {
 	return &Analyzer{
-		patterns:    getDefaultPatterns(),
-		astAnalyzer: NewASTAnalyzer(),
+		stringAnalyzer: stringpatterns.NewStringAnalyzer(),
+		astAnalyzer:    astpatterns.NewASTAnalyzer(),
 	}
 }
 
-// AnalyzePath - analyzes a file or directory for performance issues
-func (a *Analyzer) AnalyzePath(target string) ([]AnalysisResult, error) {
-	var results []AnalysisResult
+//  analyzes a file or directory for performance issues
+func (a *Analyzer) AnalyzePath(target string) ([]types.AnalysisResult, error) {
+	var results []types.AnalysisResult
 
-	// Check if target is a file or directory
+	// check if target is a file/dir
 	info, err := os.Stat(target)
 	if err != nil {
 		return nil, err
 	}
 
 	if info.IsDir() {
-		// Analyze all .go files in directory
+		// analyze all .go files in dir
 		err := filepath.Walk(target, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -72,7 +53,7 @@ func (a *Analyzer) AnalyzePath(target string) ([]AnalysisResult, error) {
 			return nil, err
 		}
 	} else {
-		// Analyze single file
+		// analyze single file
 		result, err := a.analyzeFile(target)
 		if err != nil {
 			return nil, err
@@ -83,31 +64,27 @@ func (a *Analyzer) AnalyzePath(target string) ([]AnalysisResult, error) {
 	return results, nil
 }
 
-// analyzeFile analyzes a single Go file using both string and AST patterns
-func (a *Analyzer) analyzeFile(filePath string) (AnalysisResult, error) {
-	var allIssues []Issue
+// analyzes a single Go file using both string and AST patterns
+func (a *Analyzer) analyzeFile(filePath string) (types.AnalysisResult, error) {
+	var allIssues []types.Issue
 
-	// 1. Run string-based patterns
-	content, err := os.ReadFile(filePath)
+	// run string-based patterns
+	stringIssues, err := a.stringAnalyzer.AnalyzeFile(filePath)
 	if err != nil {
-		return AnalysisResult{}, err
+		return types.AnalysisResult{}, err
+	}
+	allIssues = append(allIssues, stringIssues...)
+
+	// run AST-based patterns
+	astIssues, err := a.astAnalyzer.AnalyzeFile(filePath)
+	if err != nil {
+		
+		fmt.Printf("Warning: AST analysis for %s failed: %v\n", filePath, err)
+	} else {
+		allIssues = append(allIssues, astIssues...)
 	}
 
-	source := string(content)
-	for _, pattern := range a.patterns {
-		issues := pattern.Detector(source)
-		allIssues = append(allIssues, issues...)
-	}
-
-	// 2. Run AST-based patterns
-	if a.astAnalyzer != nil {
-		astResult, err := a.astAnalyzer.AnalyzeFileAST(filePath)
-		if err == nil {
-			allIssues = append(allIssues, astResult.Issues...)
-		}
-	}
-
-	return AnalysisResult{
+	return types.AnalysisResult{
 		FilePath: filePath,
 		Issues:   allIssues,
 	}, nil

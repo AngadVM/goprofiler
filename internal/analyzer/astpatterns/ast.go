@@ -1,27 +1,30 @@
-package analyzer
+package astpatterns
 
 import (
+	
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"strings"
+
+	"github.com/AngadVM/goprofiler/internal/types"
 )
 
-// ASTAnalyzer - handles AST-based performance analysis
+// handles AST-based performance analysis
 type ASTAnalyzer struct {
 	fset     *token.FileSet
 	patterns []ASTPattern
 }
 
-// ASTPattern - defines AST-based performance patterns
+// defines AST-based performance patterns
 type ASTPattern struct {
 	Name        string
 	Description string
 	Impact      string
-	Detector    func(*token.FileSet, *ast.File) []Issue
+	Detector    func(*token.FileSet, *ast.File) []types.Issue
 }
 
-// NewASTAnalyzer creates an analyzer with AST-based patterns
+// creates an analyzer with AST-based patterns
 func NewASTAnalyzer() *ASTAnalyzer {
 	return &ASTAnalyzer{
 		fset:     token.NewFileSet(),
@@ -29,7 +32,7 @@ func NewASTAnalyzer() *ASTAnalyzer {
 	}
 }
 
-// getASTPatterns returns sophisticated AST-based performance patterns
+// returns sophisticated AST-based performance patterns
 func getASTPatterns() []ASTPattern {
 	return []ASTPattern{
 		{
@@ -59,14 +62,14 @@ func getASTPatterns() []ASTPattern {
 	}
 }
 
-// AnalyzeFileAST analyzes a single Go file using AST patterns
-func (a *ASTAnalyzer) AnalyzeFileAST(filePath string) (AnalysisResult, error) {
+// analyzes a single Go file using AST patterns
+func (a *ASTAnalyzer) AnalyzeFile(filePath string) ([]types.Issue, error) {
 	src, err := parser.ParseFile(a.fset, filePath, nil, parser.ParseComments)
 	if err != nil {
-		return AnalysisResult{}, err
+		return nil, err
 	}
 
-	var allIssues []Issue
+	var allIssues []types.Issue
 
 	// Run all AST pattern detectors
 	for _, pattern := range a.patterns {
@@ -74,15 +77,12 @@ func (a *ASTAnalyzer) AnalyzeFileAST(filePath string) (AnalysisResult, error) {
 		allIssues = append(allIssues, issues...)
 	}
 
-	return AnalysisResult{
-		FilePath: filePath,
-		Issues:   allIssues,
-	}, nil
+	return allIssues, nil
 }
 
-// detectInefficientMapAccess finds multiple map accesses with same key in loops
-func detectInefficientMapAccess(fset *token.FileSet, file *ast.File) []Issue {
-	var issues []Issue
+//  finds multiple map accesses with same key in loops
+func detectInefficientMapAccess(fset *token.FileSet, file *ast.File) []types.Issue {
+	var issues []types.Issue
 	
 	ast.Inspect(file, func(n ast.Node) bool {
 		// Look for for loops (both regular and range)
@@ -108,7 +108,7 @@ func detectInefficientMapAccess(fset *token.FileSet, file *ast.File) []Issue {
 				return true
 			}
 
-			// Check if this is a map access
+			// Check if it is a map access
 			var mapName, keyName string
 			
 			// Get map name
@@ -131,10 +131,10 @@ func detectInefficientMapAccess(fset *token.FileSet, file *ast.File) []Issue {
 				key := mapName + "[" + keyName + "]"
 				mapAccesses[key] = append(mapAccesses[key], indexExpr.Pos())
 				
-				// If we've seen this key access more than once, flag it
-				if len(mapAccesses[key]) == 2 { // Only report once per duplicate
+				// flag if key access more than once
+				if len(mapAccesses[key]) == 2 { // report once per duplicate
 					pos := fset.Position(indexExpr.Pos())
-					issues = append(issues, Issue{
+					issues = append(issues, types.Issue{
 						Line:        pos.Line,
 						Title:       "Multiple map lookups with same key",
 						Description: "Map key '" + key + "' is accessed multiple times in " + loopType + " loop",
@@ -154,9 +154,9 @@ func detectInefficientMapAccess(fset *token.FileSet, file *ast.File) []Issue {
 	return issues
 }
 
-// detectDeferInLoop finds defer statements inside loops
-func detectDeferInLoop(fset *token.FileSet, file *ast.File) []Issue {
-	var issues []Issue
+// find defer statements inside loops
+func detectDeferInLoop(fset *token.FileSet, file *ast.File) []types.Issue {
+	var issues []types.Issue
 	
 	ast.Inspect(file, func(n ast.Node) bool {
 		var loopBody *ast.BlockStmt
@@ -189,7 +189,7 @@ func detectDeferInLoop(fset *token.FileSet, file *ast.File) []Issue {
 					funcName = "function"
 				}
 				
-				issues = append(issues, Issue{
+				issues = append(issues, types.Issue{
 					Line:        pos.Line,
 					Title:       "Defer statement in " + loopType + " loop",
 					Description: "defer " + funcName + "() in loops causes deferred calls to accumulate until function returns",
@@ -207,9 +207,9 @@ func detectDeferInLoop(fset *token.FileSet, file *ast.File) []Issue {
 	return issues
 }
 
-// detectInterfaceConversionInLoop finds type assertions and interface conversions in loops
-func detectInterfaceConversionInLoop(fset *token.FileSet, file *ast.File) []Issue {
-	var issues []Issue
+// find type assertions and interface conversions in loops
+func detectInterfaceConversionInLoop(fset *token.FileSet, file *ast.File) []types.Issue {
+	var issues []types.Issue
 	
 	ast.Inspect(file, func(n ast.Node) bool {
 		// Look for loops
@@ -240,7 +240,7 @@ func detectInterfaceConversionInLoop(fset *token.FileSet, file *ast.File) []Issu
 				
 				typeName := getTypeName(expr.Type)
 				
-				issues = append(issues, Issue{
+				issues = append(issues, types.Issue{
 					Line:        pos.Line,
 					Title:       "Type assertion in " + loopType + " loop",
 					Description: "Type assertion " + varName + ".(" + typeName + ") inside loop may impact performance",
@@ -250,12 +250,12 @@ func detectInterfaceConversionInLoop(fset *token.FileSet, file *ast.File) []Issu
 				})
 				
 			case *ast.CallExpr:
-				// Check for interface{} conversions
+				// check for interface conversions
 				if ident, ok := expr.Fun.(*ast.Ident); ok {
-					// Common interface conversion patterns
+					// common interface conversion patterns
 					if isInterfaceConversion(ident.Name) {
 						pos := fset.Position(expr.Pos())
-						issues = append(issues, Issue{
+						issues = append(issues, types.Issue{
 							Line:        pos.Line,
 							Title:       "Interface conversion in " + loopType + " loop",
 							Description: "Interface conversion " + ident.Name + "() inside loop may cause allocations",
@@ -275,9 +275,9 @@ func detectInterfaceConversionInLoop(fset *token.FileSet, file *ast.File) []Issu
 	return issues
 }
 
-// detectFunctionCallInLoopCondition finds function calls in loop conditions
-func detectFunctionCallInLoopCondition(fset *token.FileSet, file *ast.File) []Issue {
-	var issues []Issue
+// find function calls in loop conditions
+func detectFunctionCallInLoopCondition(fset *token.FileSet, file *ast.File) []types.Issue {
+	var issues []types.Issue
 	
 	ast.Inspect(file, func(n ast.Node) bool {
 		if forStmt, ok := n.(*ast.ForStmt); ok && forStmt.Cond != nil {
@@ -296,9 +296,9 @@ func detectFunctionCallInLoopCondition(fset *token.FileSet, file *ast.File) []Is
 						funcName = "function"
 					}
 					
-					// Skip built-in functions that are typically optimized
+					// skip built-in functions
 					if !isOptimizedBuiltin(funcName) {
-						issues = append(issues, Issue{
+						issues = append(issues, types.Issue{
 							Line:        pos.Line,
 							Title:       "Function call in loop condition",
 							Description: "Function " + funcName + "() is called on every loop iteration",
@@ -317,9 +317,9 @@ func detectFunctionCallInLoopCondition(fset *token.FileSet, file *ast.File) []Is
 	return issues
 }
 
-// Helper functions
 
-// getVarName extracts variable name from expression
+// Helper functions
+// extracts variable name from expression
 func getVarName(expr ast.Expr) string {
 	switch e := expr.(type) {
 	case *ast.Ident:
@@ -333,7 +333,7 @@ func getVarName(expr ast.Expr) string {
 	}
 }
 
-// getTypeName extracts type name from type expression
+// extracts type name from type expression
 func getTypeName(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
@@ -351,7 +351,7 @@ func getTypeName(expr ast.Expr) string {
 	}
 }
 
-// isInterfaceConversion checks if function name indicates interface conversion
+//  check if function name indicates interface conversion
 func isInterfaceConversion(funcName string) bool {
 	conversions := []string{
 		"interface{}", "any", "fmt.Sprint", "fmt.Sprintf", 
@@ -366,7 +366,7 @@ func isInterfaceConversion(funcName string) bool {
 	return false
 }
 
-// isOptimizedBuiltin checks if function is a built-in that's typically optimized
+// check if function is a built-in one
 func isOptimizedBuiltin(funcName string) bool {
 	builtins := []string{
 		"len", "cap", "make", "new", "append", "copy", "delete",

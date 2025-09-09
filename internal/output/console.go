@@ -2,8 +2,7 @@ package output
 
 import (
 	"fmt"
-
-	"github.com/AngadVM/goprofiler/internal/analyzer"
+	"github.com/AngadVM/goprofiler/internal/types"
 )
 
 // Formatter handles different output formats
@@ -17,7 +16,7 @@ func NewFormatter(format string) *Formatter {
 }
 
 // PrintResults outputs the analysis results in the specified format
-func (f *Formatter) PrintResults(results []analyzer.AnalysisResult, verbose bool) error {
+func (f *Formatter) PrintResults(results []types.AnalysisResult, verbose bool) error {
 	switch f.format {
 	case "json":
 		return f.printJSON(results, verbose)
@@ -27,7 +26,7 @@ func (f *Formatter) PrintResults(results []analyzer.AnalysisResult, verbose bool
 }
 
 // printConsole outputs results in a human-readable console format
-func (f *Formatter) printConsole(results []analyzer.AnalysisResult, verbose bool) error {
+func (f *Formatter) printConsole(results []types.AnalysisResult, verbose bool) error {
 	totalIssues := 0
 	highImpact := 0
 	mediumImpact := 0
@@ -51,7 +50,7 @@ func (f *Formatter) printConsole(results []analyzer.AnalysisResult, verbose bool
 	fmt.Printf("[*] Analysis Summary:\n")
 	fmt.Printf("    Files analyzed: %d\n", len(results))
 	fmt.Printf("    Total issues: %d\n", totalIssues)
-	fmt.Printf("    High impact: %d | Medium: %d | Low: %d\n\n", 
+	fmt.Printf("    High impact: %d | Medium: %d | Low: %d\n\n",
 		highImpact, mediumImpact, lowImpact)
 
 	if totalIssues == 0 {
@@ -76,7 +75,7 @@ func (f *Formatter) printConsole(results []analyzer.AnalysisResult, verbose bool
 }
 
 // printIssue formats and prints a single issue
-func (f *Formatter) printIssue(issue analyzer.Issue, verbose bool) {
+func (f *Formatter) printIssue(issue types.Issue, verbose bool) {
 	var icon string
 	switch issue.Impact {
 	case "high":
@@ -89,7 +88,7 @@ func (f *Formatter) printIssue(issue analyzer.Issue, verbose bool) {
 		icon = "[-]"
 	}
 
-	fmt.Printf("   %s Line %d: %s (%s impact)\n", 
+	fmt.Printf("   %s Line %d: %s (%s impact)\n",
 		icon, issue.Line, issue.Title, issue.Impact)
 
 	if verbose {
@@ -101,7 +100,7 @@ func (f *Formatter) printIssue(issue analyzer.Issue, verbose bool) {
 }
 
 // printJSON outputs results in JSON format (placeholder for now)
-func (f *Formatter) printJSON(results []analyzer.AnalysisResult, verbose bool) error {
+func (f *Formatter) printJSON(results []types.AnalysisResult, verbose bool) error {
 	fmt.Println("JSON output not implemented yet")
 	return nil
 }
