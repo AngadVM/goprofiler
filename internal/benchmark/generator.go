@@ -9,26 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/AngadVM/goprofiler/internal/analyzer"
+	"github.com/AngadVM/goprofiler/internal/types"
 )
 
 type BenchmarkGenerator struct {
 	fileSet *token.FileSet
-}
-
-type BenchmarkSuite struct {
-	OriginalFile        string
-	BenchmarkFile       string
-	TestCases          []TestCase
-	ExpectedImprovement string
-}
-
-type TestCase struct {
-	Name          string
-	OriginalFunc  string
-	OptimizedFunc string
-	Description   string
-	ExpectedGain  string
 }
 
 func NewBenchmarkGenerator() *BenchmarkGenerator {
@@ -37,9 +22,9 @@ func NewBenchmarkGenerator() *BenchmarkGenerator {
 	}
 }
 
-// GenerateBenchmarks creates benchmark files for detected performance issues
-func (bg *BenchmarkGenerator) GenerateBenchmarks(results []analyzer.AnalysisResult) ([]BenchmarkSuite, error) {
-	var suites []BenchmarkSuite
+// create benchmark files for detected performance issues
+func (bg *BenchmarkGenerator) GenerateBenchmarks(results []types.AnalysisResult) ([]types.BenchmarkSuite, error) {
+	var suites []types.BenchmarkSuite
 
 	for _, result := range results {
 		if len(result.Issues) == 0 {
@@ -60,23 +45,23 @@ func (bg *BenchmarkGenerator) GenerateBenchmarks(results []analyzer.AnalysisResu
 	return suites, nil
 }
 
-func (bg *BenchmarkGenerator) generateSuiteForFile(result analyzer.AnalysisResult) (BenchmarkSuite, error) {
-	suite := BenchmarkSuite{
+func (bg *BenchmarkGenerator) generateSuiteForFile(result types.AnalysisResult) (types.BenchmarkSuite, error) {
+	suite := types.BenchmarkSuite{
 		OriginalFile: result.FilePath,
-		TestCases:    []TestCase{},
+		TestCases:    []types.TestCase{},
 	}
 
-	// Parse the original file
+	// parsing the original file
 	node, err := parser.ParseFile(bg.fileSet, result.FilePath, nil, parser.ParseComments)
 	if err != nil {
 		return suite, fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	// Generate test cases for each issue that we can benchmark
+	// generate test cases for each issue
 	for _, issue := range result.Issues {
 		testCase, err := bg.generateTestCase(node, issue)
 		if err != nil {
-			continue // Skip issues we can't benchmark
+			continue // Skip issues which can't be benched 
 		}
 
 		suite.TestCases = append(suite.TestCases, testCase)
@@ -86,7 +71,7 @@ func (bg *BenchmarkGenerator) generateSuiteForFile(result analyzer.AnalysisResul
 		return suite, fmt.Errorf("no benchmarkable issues found")
 	}
 
-	// Generate the benchmark file
+	// generate the benchmark file
 	benchmarkFile, err := bg.createBenchmarkFile(suite, node)
 	if err != nil {
 		return suite, fmt.Errorf("failed to create benchmark file: %w", err)
@@ -96,9 +81,8 @@ func (bg *BenchmarkGenerator) generateSuiteForFile(result analyzer.AnalysisResul
 	return suite, nil
 }
 
-// generateTestCase now needs to dynamically extract code from the AST.
-// The hardcoded functions have been moved to helper methods to illustrate the point.
-func (bg *BenchmarkGenerator) generateTestCase(node *ast.File, issue analyzer.Issue) (TestCase, error) {
+// dynamically extract code from the AST.
+func (bg *BenchmarkGenerator) generateTestCase(node *ast.File, issue types.Issue) (types.TestCase, error) {
 	switch {
 	case strings.Contains(issue.Title, "String concatenation"):
 		return bg.newStringConcatBenchmark(node, issue)
@@ -107,19 +91,17 @@ func (bg *BenchmarkGenerator) generateTestCase(node *ast.File, issue analyzer.Is
 	case strings.Contains(issue.Title, "map lookups"):
 		return bg.newMapLookupBenchmark(node, issue)
 	default:
-		return TestCase{}, fmt.Errorf("unsupported issue type: %s", issue.Title)
+		return types.TestCase{}, fmt.Errorf("unsupported issue type: %s", issue.Title)
 	}
 }
 
-// These helper methods should implement the AST extraction and transformation.
-// The code below is a conceptual placeholder for that dynamic behavior.
-func (bg *BenchmarkGenerator) newStringConcatBenchmark(node *ast.File, issue analyzer.Issue) (TestCase, error) {
-	// In a real implementation, this would find the AST node for the issue
-	// and extract/transform the code. For now, it uses hardcoded placeholders.
+// implement the AST extraction and transformation.
+func (bg *BenchmarkGenerator) newStringConcatBenchmark(node *ast.File, issue types.Issue) (types.TestCase, error) {
+	// it using hardcoded placeholders for now
 	originalCode := bg.generateOriginalStringConcat()
 	optimizedCode := bg.generateOptimizedStringConcat()
 
-	return TestCase{
+	return types.TestCase{
 		Name:          "StringConcat",
 		Description:   "String concatenation optimization using strings.Builder",
 		ExpectedGain:  "3-5x performance improvement, 80% fewer allocations",
@@ -128,10 +110,10 @@ func (bg *BenchmarkGenerator) newStringConcatBenchmark(node *ast.File, issue ana
 	}, nil
 }
 
-func (bg *BenchmarkGenerator) newSliceBenchmark(node *ast.File, issue analyzer.Issue) (TestCase, error) {
+func (bg *BenchmarkGenerator) newSliceBenchmark(node *ast.File, issue types.Issue) (types.TestCase, error) {
 	originalCode := bg.generateOriginalSliceAlloc()
 	optimizedCode := bg.generateOptimizedSliceAlloc()
-	return TestCase{
+	return types.TestCase{
 		Name:          "SliceAlloc",
 		Description:   "Slice allocation with proper capacity",
 		ExpectedGain:  "2-3x performance improvement, 60% fewer allocations",
@@ -140,10 +122,10 @@ func (bg *BenchmarkGenerator) newSliceBenchmark(node *ast.File, issue analyzer.I
 	}, nil
 }
 
-func (bg *BenchmarkGenerator) newMapLookupBenchmark(node *ast.File, issue analyzer.Issue) (TestCase, error) {
+func (bg *BenchmarkGenerator) newMapLookupBenchmark(node *ast.File, issue types.Issue) (types.TestCase, error) {
 	originalCode := bg.generateOriginalMapLookup()
 	optimizedCode := bg.generateOptimizedMapLookup()
-	return TestCase{
+	return types.TestCase{
 		Name:          "MapLookup",
 		Description:   "Optimized map lookup caching",
 		ExpectedGain:  "1.5-2x performance improvement",
@@ -152,7 +134,7 @@ func (bg *BenchmarkGenerator) newMapLookupBenchmark(node *ast.File, issue analyz
 	}, nil
 }
 
-// Generate function implementations (these are now conceptual placeholders)
+// conceptual placeholders
 func (bg *BenchmarkGenerator) generateOriginalStringConcat() string {
 	return `func processUsersOriginal(users []string) string {
 	result := ""
@@ -220,7 +202,7 @@ func (bg *BenchmarkGenerator) generateOptimizedMapLookup() string {
 }`
 }
 
-func (bg *BenchmarkGenerator) createBenchmarkFile(suite BenchmarkSuite, originalNode *ast.File) (string, error) {
+func (bg *BenchmarkGenerator) createBenchmarkFile(suite types.BenchmarkSuite, originalNode *ast.File) (string, error) {
 	// Create benchmark file path
 	dir := filepath.Dir(suite.OriginalFile)
 	filename := strings.TrimSuffix(filepath.Base(suite.OriginalFile), ".go")
@@ -238,7 +220,7 @@ func (bg *BenchmarkGenerator) createBenchmarkFile(suite BenchmarkSuite, original
 	return benchmarkPath, nil
 }
 
-func (bg *BenchmarkGenerator) generateBenchmarkContent(suite BenchmarkSuite, pkgName string) string {
+func (bg *BenchmarkGenerator) generateBenchmarkContent(suite types.BenchmarkSuite, pkgName string) string {
 	var content strings.Builder
 
 	// Package declaration and imports
@@ -258,14 +240,14 @@ func (bg *BenchmarkGenerator) generateBenchmarkContent(suite BenchmarkSuite, pkg
 	content.WriteString("\t}\n")
 	content.WriteString(")\n\n")
 
-	// Generate all function implementations first
+	// generating all function implementations first
 	for _, testCase := range suite.TestCases {
 		content.WriteString("// " + testCase.Description + "\n")
 		content.WriteString(testCase.OriginalFunc + "\n\n")
 		content.WriteString(testCase.OptimizedFunc + "\n\n")
 	}
 
-	// Generate benchmark functions
+	// generating benchmark functions
 	for _, testCase := range suite.TestCases {
 		content.WriteString(bg.generateBenchmarkFunctions(testCase))
 		content.WriteString("\n")
@@ -274,7 +256,7 @@ func (bg *BenchmarkGenerator) generateBenchmarkContent(suite BenchmarkSuite, pkg
 	return content.String()
 }
 
-func (bg *BenchmarkGenerator) generateBenchmarkFunctions(testCase TestCase) string {
+func (bg *BenchmarkGenerator) generateBenchmarkFunctions(testCase types.TestCase) string {
 	var content strings.Builder
 
 	switch testCase.Name {
