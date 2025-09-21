@@ -5,6 +5,16 @@ import (
 	"github.com/AngadVM/goprofiler/internal/types"
 )
 
+// ANSI color codes
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"  // High impact
+	ColorYellow = "\033[33m"  // Medium impact
+	ColorBlue   = "\033[34m"  // Low impact
+	ColorGreen  = "\033[32m"  // Success/info
+	ColorBold   = "\033[1m"   // Bold text
+)
+
 // Formatter handles different output formats
 type Formatter struct {
 	format string
@@ -46,15 +56,17 @@ func (f *Formatter) printConsole(results []types.AnalysisResult, verbose bool) e
 		}
 	}
 
-	// Summary
-	fmt.Printf("[*] Analysis Summary:\n")
+	// Summary with colors
+	fmt.Printf("%s[*] Analysis Summary:%s\n", ColorBold, ColorReset)
 	fmt.Printf("    Files analyzed: %d\n", len(results))
 	fmt.Printf("    Total issues: %d\n", totalIssues)
-	fmt.Printf("    High impact: %d | Medium: %d | Low: %d\n\n",
-		highImpact, mediumImpact, lowImpact)
+	fmt.Printf("    %sHigh impact: %d%s | %sMedium: %d%s | %sLow: %d%s\n\n",
+		ColorRed, highImpact, ColorReset,
+		ColorYellow, mediumImpact, ColorReset,
+		ColorBlue, lowImpact, ColorReset)
 
 	if totalIssues == 0 {
-		fmt.Println("[+] No performance issues detected!")
+		fmt.Printf("%s[+] No performance issues detected!%s\n", ColorGreen, ColorReset)
 		return nil
 	}
 
@@ -64,7 +76,7 @@ func (f *Formatter) printConsole(results []types.AnalysisResult, verbose bool) e
 			continue
 		}
 
-		fmt.Printf(">> %s\n", result.FilePath)
+		fmt.Printf("%s>> %s%s\n", ColorBold, result.FilePath, ColorReset)
 		for _, issue := range result.Issues {
 			f.printIssue(issue, verbose)
 		}
@@ -74,27 +86,33 @@ func (f *Formatter) printConsole(results []types.AnalysisResult, verbose bool) e
 	return nil
 }
 
-// printIssue formats and prints a single issue
+// printIssue formats and prints a single issue with colors
 func (f *Formatter) printIssue(issue types.Issue, verbose bool) {
 	var icon string
+	var color string
+
 	switch issue.Impact {
 	case "high":
 		icon = "[!]"
+		color = ColorRed
 	case "medium":
 		icon = "[*]"
+		color = ColorYellow
 	case "low":
 		icon = "[i]"
+		color = ColorBlue
 	default:
 		icon = "[-]"
+		color = ColorReset
 	}
 
-	fmt.Printf("   %s Line %d: %s (%s impact)\n",
-		icon, issue.Line, issue.Title, issue.Impact)
+	fmt.Printf("   %s%s Line %d: %s (%s impact)%s\n",
+		color, icon, issue.Line, issue.Title, issue.Impact, ColorReset)
 
 	if verbose {
 		fmt.Printf("       %s\n", issue.Description)
 		if issue.Suggestion != "" {
-			fmt.Printf("       Suggestion: %s\n", issue.Suggestion)
+			fmt.Printf("       %sSuggestion:%s %s\n", ColorGreen, ColorReset, issue.Suggestion)
 		}
 	}
 }
