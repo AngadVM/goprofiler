@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/AngadVM/goprofiler/internal/types"
 )
 
 type BenchmarkRunner struct {
@@ -45,8 +47,8 @@ func NewBenchmarkRunner(outputDir string) *BenchmarkRunner {
 	}
 }
 
-// RunBenchmarks executes all generated benchmarks and returns comparison results
-func (br *BenchmarkRunner) RunBenchmarks(suites []BenchmarkSuite) ([]ComparisonResult, error) {
+// executes all generated benchmarks and returns comparison results
+func (br *BenchmarkRunner) RunBenchmarks(suites []types.BenchmarkSuite) ([]ComparisonResult, error) {
 	var allResults []ComparisonResult
 
 	for _, suite := range suites {
@@ -62,11 +64,11 @@ func (br *BenchmarkRunner) RunBenchmarks(suites []BenchmarkSuite) ([]ComparisonR
 	return allResults, nil
 }
 
-// runSuite executes a single benchmark suite in a temporary directory
-func (br *BenchmarkRunner) runSuite(suite BenchmarkSuite) ([]ComparisonResult, error) {
+// executes a single benchmark suite in a temporary directory
+func (br *BenchmarkRunner) runSuite(suite types.BenchmarkSuite) ([]ComparisonResult, error) {
 	var results []ComparisonResult
 
-	// Create a temporary directory for the benchmark
+	// create a temporary directory for the benchmark
 	tempDir, err := os.MkdirTemp("", "goprofiler-bench-")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
@@ -95,7 +97,7 @@ func (br *BenchmarkRunner) runSuite(suite BenchmarkSuite) ([]ComparisonResult, e
 		return nil, fmt.Errorf("failed to copy benchmark file: %w", err)
 	}
 	
-	// Now remove the original file
+	// remove the original file
 	if err := os.Remove(suite.BenchmarkFile); err != nil {
 		fmt.Printf("Warning: Failed to remove original benchmark file: %v\n", err)
 	}
@@ -278,7 +280,7 @@ func (br *BenchmarkRunner) calculateImprovement(original, optimized BenchmarkRes
 	return improvement
 }
 
-// SaveResults saves benchmark results to JSON file for later analysis
+// saves benchmark results to JSON file for later analysis
 func (br *BenchmarkRunner) SaveResults(results []ComparisonResult, filename string) error {
 	if br.outputDir != "" {
 		err := os.MkdirAll(br.outputDir, 0755)
@@ -296,7 +298,7 @@ func (br *BenchmarkRunner) SaveResults(results []ComparisonResult, filename stri
 	return os.WriteFile(filename, data, 0644)
 }
 
-// PrintResults displays benchmark comparison results in a formatted table
+// displays benchmark comparison results in a formatted table
 func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 	if len(results) == 0 {
 		fmt.Println("   No benchmark results to display")
@@ -321,7 +323,7 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 		fmt.Printf("   Optimized: %8.0f ns/op | %4d allocs/op | %6d B/op\n", 
 			result.OptimizedResult.NsPerOp, result.OptimizedResult.AllocsPerOp, result.OptimizedResult.BytesPerOp)
 
-		// Get the improvement icons from the new, non-emoji function
+		
 		speedIcon := br.getImprovementIcon(result.Improvement.SpeedupPercentage)
 		allocIcon := br.getImprovementIcon(result.Improvement.AllocReduction)
 
@@ -331,7 +333,7 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 			allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction)
 	}
 
-	// Summary statistics - these headers have also been changed
+	// Summary statistics
 	improvementRate := float64(significantImprovements) / float64(totalTests) * 100
 	fmt.Printf("Summary: %d/%d tests showed significant improvements (%.1f%%)\n", 
 		significantImprovements, totalTests, improvementRate)
@@ -342,7 +344,7 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 	}
 }
 
-// getImprovementIcon returns a suitable character based on improvement percentage
+// returns a suitable character based on improvement percentage
 func (br *BenchmarkRunner) getImprovementIcon(percentage float64) string {
 	switch {
 	case percentage >= 50:
@@ -382,11 +384,14 @@ func (br *BenchmarkRunner) calculateAverageAllocReduction(results []ComparisonRe
 	return total / float64(len(results))
 }
 
-// CleanupBenchmarkFiles removes generated benchmark files
-func (br *BenchmarkRunner) CleanupBenchmarkFiles(suites []BenchmarkSuite) error {
+// removes generated benchmark files
+func (br *BenchmarkRunner) CleanupBenchmarkFiles(suites []types.BenchmarkSuite) error {
 	for _, suite := range suites {
-		if err := os.Remove(suite.BenchmarkFile); err != nil {
-			fmt.Printf("   Warning: Could not remove %s: %v\n", suite.BenchmarkFile, err)
+		// Add a check to see if the file exists before trying to remove it
+		if _, err := os.Stat(suite.BenchmarkFile); err == nil {
+			if err := os.Remove(suite.BenchmarkFile); err != nil {
+				fmt.Printf("   Warning: Could not remove %s: %v\n", suite.BenchmarkFile, err)
+			}
 		}
 	}
 	return nil
