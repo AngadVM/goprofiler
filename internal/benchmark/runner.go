@@ -15,6 +15,14 @@ import (
 	"github.com/AngadVM/goprofiler/internal/types"
 )
 
+// ANSI color codes for output formatting
+const (
+	ColorReset  = "\033[0m"
+	ColorGreen  = "\033[32m"  // Green for improvements
+	ColorBold   = "\033[1m"   // Bold text
+	ColorCyan   = "\033[36m"  // Cyan for headers
+)
+
 type BenchmarkRunner struct {
 	outputDir string
 }
@@ -298,15 +306,15 @@ func (br *BenchmarkRunner) SaveResults(results []ComparisonResult, filename stri
 	return os.WriteFile(filename, data, 0644)
 }
 
-// displays benchmark comparison results in a formatted table
+// displays benchmark comparison results in a formatted table with green improvement lines
 func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 	if len(results) == 0 {
 		fmt.Println("   No benchmark results to display")
 		return
 	}
 
-	fmt.Printf("\nBenchmark Results Summary\n")
-	fmt.Printf("=" + strings.Repeat("=", 50) + "\n\n")
+	fmt.Printf("\n%sBenchmark Results Summary%s\n", ColorCyan+ColorBold, ColorReset)
+	fmt.Printf("%s%s%s\n\n", ColorCyan, strings.Repeat("=", 50), ColorReset)
 
 	totalTests := len(results)
 	significantImprovements := 0
@@ -317,30 +325,52 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 			significantImprovements++
 		}
 
-		fmt.Printf("Test Case: %s\n", result.TestCase)
+		fmt.Printf("%sTest Case: %s%s\n", ColorBold, result.TestCase, ColorReset)
 		fmt.Printf("   Original:  %8.0f ns/op | %4d allocs/op | %6d B/op\n", 
 			result.OriginalResult.NsPerOp, result.OriginalResult.AllocsPerOp, result.OriginalResult.BytesPerOp)
 		fmt.Printf("   Optimized: %8.0f ns/op | %4d allocs/op | %6d B/op\n", 
 			result.OptimizedResult.NsPerOp, result.OptimizedResult.AllocsPerOp, result.OptimizedResult.BytesPerOp)
 
-		
+		// Display improvements in green if they exist, otherwise normal color
 		speedIcon := br.getImprovementIcon(result.Improvement.SpeedupPercentage)
 		allocIcon := br.getImprovementIcon(result.Improvement.AllocReduction)
 
-		fmt.Printf("   %s Speed:  %.1fx faster (%.1f%% improvement)\n", 
-			speedIcon, result.Improvement.SpeedupFactor, result.Improvement.SpeedupPercentage)
-		fmt.Printf("   %s Memory: %.1f%% fewer allocations, %.1f%% less memory\n\n", 
-			allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction)
+		// Speed improvement line - green if there's improvement
+		if result.Improvement.SpeedupPercentage > 0 {
+			fmt.Printf("   %s%s Speed:  %.1fx faster (%.1f%% improvement)%s\n", 
+				ColorGreen, speedIcon, result.Improvement.SpeedupFactor, result.Improvement.SpeedupPercentage, ColorReset)
+		} else {
+			fmt.Printf("   %s Speed:  %.1fx faster (%.1f%% improvement)\n", 
+				speedIcon, result.Improvement.SpeedupFactor, result.Improvement.SpeedupPercentage)
+		}
+
+		// Memory improvement line - green if there's improvement
+		if result.Improvement.AllocReduction > 0 || result.Improvement.MemoryReduction > 0 {
+			fmt.Printf("   %s%s Memory: %.1f%% fewer allocations, %.1f%% less memory%s\n\n", 
+				ColorGreen, allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction, ColorReset)
+		} else {
+			fmt.Printf("   %s Memory: %.1f%% fewer allocations, %.1f%% less memory\n\n", 
+				allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction)
+		}
 	}
 
-	// Summary statistics
+	// Summary statistics - highlight significant improvements in green
 	improvementRate := float64(significantImprovements) / float64(totalTests) * 100
-	fmt.Printf("Summary: %d/%d tests showed significant improvements (%.1f%%)\n", 
-		significantImprovements, totalTests, improvementRate)
+	fmt.Printf("%sSummary:%s %d/%d tests showed significant improvements ", 
+		ColorBold, ColorReset, significantImprovements, totalTests)
+	
+	if improvementRate > 0 {
+		fmt.Printf("%s(%.1f%%)%s\n", ColorGreen, improvementRate, ColorReset)
+	} else {
+		fmt.Printf("(%.1f%%)\n", improvementRate)
+	}
 
 	if significantImprovements > 0 {
-		fmt.Printf("Average gains: %.1fx faster with %.1f%% fewer allocations\n", 
-			br.calculateAverageSpeedup(results), br.calculateAverageAllocReduction(results))
+		avgSpeedup := br.calculateAverageSpeedup(results)
+		avgAllocReduction := br.calculateAverageAllocReduction(results)
+		
+		fmt.Printf("%sAverage gains: %.1fx faster with %.1f%% fewer allocations%s\n", 
+			ColorGreen, avgSpeedup, avgAllocReduction, ColorReset)
 	}
 }
 
