@@ -84,8 +84,10 @@ func analyzeCommand(ctx *cli.Context) error {
 	verbose := ctx.Bool("verbose")
 	outputFormat := ctx.String("output")
 
-	fmt.Printf(" GoProfiler - Analyzing: %s\n", target)
-	fmt.Println("=" + strings.Repeat("=", 40))
+	if outputFormat != "json" {
+		fmt.Printf(" GoProfiler - Analyzing: %s\n", target)
+		fmt.Println("=" + strings.Repeat("=", 40))
+	}
 
 	// Use the analyzer package
 	a := analyzer.New()
