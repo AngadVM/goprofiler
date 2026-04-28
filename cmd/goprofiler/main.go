@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/AngadVM/goprofiler/internal/analyzer"
 	"github.com/AngadVM/goprofiler/internal/benchmark"
@@ -84,7 +85,7 @@ func analyzeCommand(ctx *cli.Context) error {
 	outputFormat := ctx.String("output")
 
 	fmt.Printf(" GoProfiler - Analyzing: %s\n", target)
-	fmt.Println("=" + repeatString("=", 40))
+	fmt.Println("=" + strings.Repeat("=", 40))
 
 	// Use the analyzer package
 	a := analyzer.New()
@@ -110,7 +111,7 @@ func benchmarkCommand(ctx *cli.Context) error {
 	saveResults := ctx.String("save-results")
 
 	fmt.Printf("--> GoProfiler - Benchmarking: %s\n", target)
-	fmt.Println("=" + repeatString("=", 50))
+	fmt.Println("=" + strings.Repeat("=", 50))
 
 	// Step 1: Analyze for performance issues
 	fmt.Println(" [*] Analyzing code for performance issues...")
@@ -230,20 +231,12 @@ func checkCommand(ctx *cli.Context) error {
 	return nil
 }
 
-func repeatString(s string, count int) string {
-	result := ""
-	for i := 0; i < count; i++ {
-		result += s
-	}
-	return result
-}
-
 func printBenchmarkJSON(results []benchmark.ComparisonResult) error {
 	jsonData, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	
+
 	fmt.Println(string(jsonData))
 	return nil
 }

@@ -1,18 +1,21 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/AngadVM/goprofiler/internal/types"
 )
 
 // ANSI color codes
 const (
 	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"  // High impact
-	ColorYellow = "\033[33m"  // Medium impact
-	ColorBlue   = "\033[34m"  // Low impact
-	ColorGreen  = "\033[32m"  // Success/info
-	ColorBold   = "\033[1m"   // Bold text
+	ColorRed    = "\033[31m" // High impact
+	ColorYellow = "\033[33m" // Medium impact
+	ColorBlue   = "\033[34m" // Low impact
+	ColorGreen  = "\033[32m" // Success/info
+	ColorBold   = "\033[1m"  // Bold text
 )
 
 // Formatter handles different output formats
@@ -117,8 +120,9 @@ func (f *Formatter) printIssue(issue types.Issue, verbose bool) {
 	}
 }
 
-// printJSON outputs results in JSON format (placeholder for now)
+// printJSON outputs results in JSON format
 func (f *Formatter) printJSON(results []types.AnalysisResult, verbose bool) error {
-	fmt.Println("JSON output not implemented yet")
-	return nil
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(results)
 }
