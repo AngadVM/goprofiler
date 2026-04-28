@@ -17,10 +17,10 @@ import (
 
 // ANSI color codes for output formatting
 const (
-	ColorReset  = "\033[0m"
-	ColorGreen  = "\033[32m"  // Green for improvements
-	ColorBold   = "\033[1m"   // Bold text
-	ColorCyan   = "\033[36m"  // Cyan for headers
+	ColorReset = "\033[0m"
+	ColorGreen = "\033[32m" // Green for improvements
+	ColorBold  = "\033[1m"  // Bold text
+	ColorCyan  = "\033[36m" // Cyan for headers
 )
 
 type BenchmarkRunner struct {
@@ -86,7 +86,7 @@ func (br *BenchmarkRunner) runSuite(suite types.BenchmarkSuite) ([]ComparisonRes
 	// Copy the generated benchmark file to the temporary directory
 	benchFileBasename := filepath.Base(suite.BenchmarkFile)
 	newBenchPath := filepath.Join(tempDir, benchFileBasename)
-	
+
 	// Use copy-and-delete to handle cross-device moves
 	sourceFile, err := os.Open(suite.BenchmarkFile)
 	if err != nil {
@@ -104,7 +104,7 @@ func (br *BenchmarkRunner) runSuite(suite types.BenchmarkSuite) ([]ComparisonRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy benchmark file: %w", err)
 	}
-	
+
 	// remove the original file
 	if err := os.Remove(suite.BenchmarkFile); err != nil {
 		fmt.Printf("Warning: Failed to remove original benchmark file: %v\n", err)
@@ -122,7 +122,7 @@ func (br *BenchmarkRunner) runSuite(suite types.BenchmarkSuite) ([]ComparisonRes
 	if err := os.WriteFile(newOriginalPath, originalContent, 0644); err != nil {
 		return nil, fmt.Errorf("failed to copy original file: %w", err)
 	}
-	
+
 	// Create a temporary go.mod file in the temporary directory
 	modContent := `module goprofiler_bench_temp
 
@@ -134,8 +134,13 @@ go 1.21
 	}
 
 	// Change to the temporary directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
 	if err := os.Chdir(tempDir); err != nil {
 		return nil, fmt.Errorf("failed to change directory: %w", err)
 	}
@@ -164,12 +169,12 @@ go 1.21
 
 	// Create comparison results
 	testCaseMap := map[string]string{
-		"BenchmarkStringConcatOriginal":   "StringConcat",
-		"BenchmarkStringConcatOptimized":  "StringConcat",
-		"BenchmarkSliceAllocOriginal":     "SliceAlloc",
-		"BenchmarkSliceAllocOptimized":    "SliceAlloc", 
-		"BenchmarkMapLookupOriginal":      "MapLookup",
-		"BenchmarkMapLookupOptimized":     "MapLookup",
+		"BenchmarkStringConcatOriginal":  "StringConcat",
+		"BenchmarkStringConcatOptimized": "StringConcat",
+		"BenchmarkSliceAllocOriginal":    "SliceAlloc",
+		"BenchmarkSliceAllocOptimized":   "SliceAlloc",
+		"BenchmarkMapLookupOriginal":     "MapLookup",
+		"BenchmarkMapLookupOptimized":    "MapLookup",
 	}
 
 	// Group results by test case
@@ -179,7 +184,7 @@ go 1.21
 			if testCases[testCase] == nil {
 				testCases[testCase] = make(map[string]BenchmarkResult)
 			}
-			
+
 			if strings.Contains(benchName, "Original") {
 				testCases[testCase]["original"] = result
 			} else if strings.Contains(benchName, "Optimized") {
@@ -205,24 +210,6 @@ go 1.21
 	}
 
 	return results, nil
-}
-
-func (br *BenchmarkRunner) hasGoMod(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, "go.mod"))
-	return err == nil
-}
-
-func (br *BenchmarkRunner) createTempGoMod(dir string) error {
-	modContent := `module benchmark_temp
-
-go 1.21
-`
-	return os.WriteFile(filepath.Join(dir, "go.mod"), []byte(modContent), 0644)
-}
-
-func (br *BenchmarkRunner) cleanupTempGoMod(dir string) {
-	os.Remove(filepath.Join(dir, "go.mod"))
-	os.Remove(filepath.Join(dir, "go.sum"))
 }
 
 func (br *BenchmarkRunner) parseBenchmarkOutput(output string) (map[string]BenchmarkResult, error) {
@@ -326,9 +313,9 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 		}
 
 		fmt.Printf("%sTest Case: %s%s\n", ColorBold, result.TestCase, ColorReset)
-		fmt.Printf("   Original:  %8.0f ns/op | %4d allocs/op | %6d B/op\n", 
+		fmt.Printf("   Original:  %8.0f ns/op | %4d allocs/op | %6d B/op\n",
 			result.OriginalResult.NsPerOp, result.OriginalResult.AllocsPerOp, result.OriginalResult.BytesPerOp)
-		fmt.Printf("   Optimized: %8.0f ns/op | %4d allocs/op | %6d B/op\n", 
+		fmt.Printf("   Optimized: %8.0f ns/op | %4d allocs/op | %6d B/op\n",
 			result.OptimizedResult.NsPerOp, result.OptimizedResult.AllocsPerOp, result.OptimizedResult.BytesPerOp)
 
 		// Display improvements in green if they exist, otherwise normal color
@@ -337,28 +324,28 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 
 		// Speed improvement line - green if there's improvement
 		if result.Improvement.SpeedupPercentage > 0 {
-			fmt.Printf("   %s%s Speed:  %.1fx faster (%.1f%% improvement)%s\n", 
+			fmt.Printf("   %s%s Speed:  %.1fx faster (%.1f%% improvement)%s\n",
 				ColorGreen, speedIcon, result.Improvement.SpeedupFactor, result.Improvement.SpeedupPercentage, ColorReset)
 		} else {
-			fmt.Printf("   %s Speed:  %.1fx faster (%.1f%% improvement)\n", 
+			fmt.Printf("   %s Speed:  %.1fx faster (%.1f%% improvement)\n",
 				speedIcon, result.Improvement.SpeedupFactor, result.Improvement.SpeedupPercentage)
 		}
 
 		// Memory improvement line - green if there's improvement
 		if result.Improvement.AllocReduction > 0 || result.Improvement.MemoryReduction > 0 {
-			fmt.Printf("   %s%s Memory: %.1f%% fewer allocations, %.1f%% less memory%s\n\n", 
+			fmt.Printf("   %s%s Memory: %.1f%% fewer allocations, %.1f%% less memory%s\n\n",
 				ColorGreen, allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction, ColorReset)
 		} else {
-			fmt.Printf("   %s Memory: %.1f%% fewer allocations, %.1f%% less memory\n\n", 
+			fmt.Printf("   %s Memory: %.1f%% fewer allocations, %.1f%% less memory\n\n",
 				allocIcon, result.Improvement.AllocReduction, result.Improvement.MemoryReduction)
 		}
 	}
 
 	// Summary statistics - highlight significant improvements in green
 	improvementRate := float64(significantImprovements) / float64(totalTests) * 100
-	fmt.Printf("%sSummary:%s %d/%d tests showed significant improvements ", 
+	fmt.Printf("%sSummary:%s %d/%d tests showed significant improvements ",
 		ColorBold, ColorReset, significantImprovements, totalTests)
-	
+
 	if improvementRate > 0 {
 		fmt.Printf("%s(%.1f%%)%s\n", ColorGreen, improvementRate, ColorReset)
 	} else {
@@ -368,8 +355,8 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 	if significantImprovements > 0 {
 		avgSpeedup := br.calculateAverageSpeedup(results)
 		avgAllocReduction := br.calculateAverageAllocReduction(results)
-		
-		fmt.Printf("%sAverage gains: %.1fx faster with %.1f%% fewer allocations%s\n", 
+
+		fmt.Printf("%sAverage gains: %.1fx faster with %.1f%% fewer allocations%s\n",
 			ColorGreen, avgSpeedup, avgAllocReduction, ColorReset)
 	}
 }
@@ -378,15 +365,15 @@ func (br *BenchmarkRunner) PrintResults(results []ComparisonResult) {
 func (br *BenchmarkRunner) getImprovementIcon(percentage float64) string {
 	switch {
 	case percentage >= 50:
-		return "++" 
+		return "++"
 	case percentage >= 20:
-		return "+" 
+		return "+"
 	case percentage >= 5:
 		return "~"
 	case percentage > 0:
 		return "•"
 	default:
-		return "x" 
+		return "x"
 	}
 }
 
